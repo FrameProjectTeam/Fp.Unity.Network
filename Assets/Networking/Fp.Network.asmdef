@@ -1,0 +1,17 @@
+{
+    "name": "Fp.Network",
+    "rootNamespace": "Fp.Network",
+    "references": [
+        "GUID:b13acaa83416a0648b105c9b148ce9c4",
+        "GUID:1e27a3c05b0004045823a732722c0ef0"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
