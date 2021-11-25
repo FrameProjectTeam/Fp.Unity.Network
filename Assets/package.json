@@ -8,7 +8,7 @@
   "author": { "name": "Frame Project", "email": "Yevhenii.Vitiuk@gmail.com"},
   "license": "MIT",
   "dependencies": {
-	"com.fp.collections": "https://github.com/FrameProjectTeam/Collections.git?path=/Unity/Assets",
-    "com.fp.utility": "https://github.com/FrameProjectTeam/Fp.Unity.Utility.git?path=/Assets"
+	"com.fp.collections": "1.0.1",
+    "com.fp.utility": "1.0.0"
   }
 }
