@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using Fp.Collections;
@@ -6,9 +8,9 @@ using Fp.Utility;
 
 namespace Fp.Network.Interpolation
 {
-	public sealed class Interpolator<TSnapshot, TLerpStrategy> : IInterpolator<TSnapshot>
-		where TSnapshot : struct
-		where TLerpStrategy : ILerpStrategy<TSnapshot>
+	public sealed class Interpolator<TState, TLerpStrategy> : IInterpolator<TState>
+		where TState : struct
+		where TLerpStrategy : ILerpStrategy<TState>
 	{
 		/// <summary>
 		///     Initial circular buffer size
@@ -73,7 +75,7 @@ namespace Fp.Network.Interpolation
 		private float _updateTime;
 
 		// Cyclic buffer for saving snapshot history. 
-		private readonly FpDeque<Snapshot> _history;
+		private readonly FpDeque<Snapshot<TState>> _history;
 
 		// The strategy that defines the interpolation logic between two snapshots. 
 		private readonly TLerpStrategy _interpolator;
@@ -83,52 +85,56 @@ namespace Fp.Network.Interpolation
 			HistoryTimeLimit = cachedTime;
 
 			_interpolator = interpolator;
-			_history = new FpDeque<Snapshot>(InitCacheSize);
+			_history = new FpDeque<Snapshot<TState>>(InitCacheSize);
 		}
+
+#region IEnumerable Implementation
+
+		public IEnumerator GetEnumerator()
+		{
+			return ((IEnumerable)_history).GetEnumerator();
+		}
+
+#endregion
+
+#region IEnumerable<Snapshot<TState>> Implementation
+
+		IEnumerator<Snapshot<TState>> IEnumerable<Snapshot<TState>>.GetEnumerator()
+		{
+			return _history.GetEnumerator();
+		}
+
+#endregion
 
 #region IInterpolator Implementation
 
 		public float HistoryTimeLimit { get; }
 
-		/// <summary>
-		///     Count of cached snapshot items.
-		/// </summary>
-		public int SnapshotCount => _history.Count;
+		/// <inheritdoc />
+		public int HistoryLength => _history.Count;
 
-		/// <summary>
-		///     Average interval between sending snapshots.
-		/// </summary>
+		/// <inheritdoc />
 		public float UpdateTime => _updateTime;
 
-		/// <summary>
-		///     Waiting time for a delivering new snapshot.
-		/// </summary>
+		/// <inheritdoc />
 		public float Latency => _latency;
 
-		/// <summary>
-		///     Summary interpolation delay
-		/// </summary>
+		/// <inheritdoc />
 		public float Delay => (UpdateTime + Latency) * IncreaseLatencyCoef;
 
 #endregion
 
-#region IInterpolator<TSnapshot> Implementation
+#region IInterpolator<TState> Implementation
 
-		/// <summary>
-		///     Adds new snapshot sample to interpolation history.
-		/// </summary>
-		/// <param name="remoteTime">Remote session time for passed snapshot.</param>
-		/// <param name="localTime">Local session time.</param>
-		/// <param name="snapshot">Target snapshot, will copy to history.</param>
-		/// <returns></returns>
-		public bool AddSample(float remoteTime, float localTime, in TSnapshot snapshot)
+		/// <inheritdoc />
+		public bool AddSample(float remoteTime, float localTime, in TState snapshot)
 		{
 			if (!EstimateTimings(remoteTime, localTime))
 			{
 				return false;
 			}
 
-			_history.AddToRight(new Snapshot(remoteTime, snapshot));
+			_history.AddToRight(new Snapshot<TState>(remoteTime, snapshot));
 			if (AutoCleanup)
 			{
 				InternalCleanup(remoteTime);
@@ -137,54 +143,43 @@ namespace Fp.Network.Interpolation
 			return true;
 		}
 
-		/// <summary>
-		///     Reset history and recalculate new timings by passed values.
-		/// </summary>
-		/// <param name="remoteTime">Remote session time for passed snapshot.</param>
-		/// <param name="clientTime">Local session time.</param>
-		/// <param name="snapshot">Target snapshot, will copy to history.</param>
-		public void Reset(float remoteTime, float clientTime, in TSnapshot snapshot)
+		/// <inheritdoc />
+		public void Reset(float remoteTime, float clientTime, in TState state)
 		{
 			_history.Clear();
-			_history.AddToRight(new Snapshot(remoteTime, snapshot));
+			_history.AddToRight(new Snapshot<TState>(remoteTime, state));
 
 			_latency = clientTime - remoteTime;
 			_updateTime = _latency;
 		}
 
-		/// <summary>
-		///     Calculate intermediate(interpolated) snapshot based on history and passed session time
-		///     <see cref="interpolateTime" />
-		/// </summary>
-		/// <param name="interpolateTime">Session time to make snapshot.</param>
-		/// <param name="snapshot">Intermediate(interpolated) snapshot.</param>
-		/// <returns></returns>
-		public float Interpolate(float interpolateTime, out TSnapshot snapshot)
+		/// <inheritdoc />
+		public float Interpolate(float interpolateTime, out TState state)
 		{
-			switch (SnapshotCount)
+			switch (HistoryLength)
 			{
 				case 0:
 				{
-					snapshot = default;
+					state = default;
 					return float.NaN;
 				}
 				case 1:
 				{
-					ref Snapshot first = ref _history.PeekRight();
-					snapshot = first.Value;
+					ref Snapshot<TState> first = ref _history.PeekRight();
+					state = first.Value;
 					return interpolateTime - first.RemoteTime;
 				}
 			}
 
-			for (var i = 1; i < SnapshotCount; i++)
+			for (var i = 1; i < HistoryLength; i++)
 			{
-				ref Snapshot to = ref _history.PeekRight(i - 1);
-				ref Snapshot from = ref _history.PeekRight(i);
+				ref Snapshot<TState> to = ref _history.PeekRight(i - 1);
+				ref Snapshot<TState> from = ref _history.PeekRight(i);
 
 				//Target last
 				if (interpolateTime >= to.RemoteTime)
 				{
-					snapshot = to.Value;
+					state = to.Value;
 					return interpolateTime - to.RemoteTime;
 				}
 
@@ -193,13 +188,13 @@ namespace Fp.Network.Interpolation
 				{
 					float t = MathUtils.Map01(interpolateTime, from.RemoteTime, to.RemoteTime);
 
-					_interpolator.Interpolate(from.Value, to.Value, t, out snapshot);
+					_interpolator.Interpolate(from.Value, to.Value, t, out state);
 					return 0;
 				}
 			}
 
-			ref Snapshot last = ref _history.PeekLeft();
-			snapshot = last.Value;
+			ref Snapshot<TState> last = ref _history.PeekLeft();
+			state = last.Value;
 			return interpolateTime - last.RemoteTime;
 		}
 
@@ -211,13 +206,25 @@ namespace Fp.Network.Interpolation
 
 		public void Cleanup()
 		{
-			if (!_history.TryPeekRight(out Snapshot value))
+			if (!_history.TryPeekRight(out Snapshot<TState> value))
 			{
 				return;
 			}
 
 			InternalCleanup(value.RemoteTime);
 		}
+
+#endregion
+
+#region IReadOnlyCollection<Snapshot<TState>> Implementation
+
+		int IReadOnlyCollection<Snapshot<TState>>.Count => _history.Count;
+
+#endregion
+
+#region IReadOnlyList<Snapshot<TState>> Implementation
+
+		public Snapshot<TState> this[int index] => _history[index];
 
 #endregion
 
@@ -228,7 +235,7 @@ namespace Fp.Network.Interpolation
 			int capElement;
 			for (capElement = 0; capElement < _history.Count; capElement++)
 			{
-				ref Snapshot snap = ref _history.PeekItem(capElement);
+				ref Snapshot<TState> snap = ref _history.PeekItem(capElement);
 				if (snap.RemoteTime > timeCap)
 				{
 					break;
@@ -244,7 +251,7 @@ namespace Fp.Network.Interpolation
 		private bool EstimateTimings(float remoteTime, float clientTime)
 		{
 			//If it first time set this time as is.
-			if (!_history.TryPeekRight(out Snapshot last))
+			if (!_history.TryPeekRight(out Snapshot<TState> last))
 			{
 				_latency = clientTime - remoteTime;
 				_updateTime = _latency;
@@ -279,18 +286,6 @@ namespace Fp.Network.Interpolation
 				const int multiplier = DecreaseDivisor - 1;
 
 				bufferedValue = Math.Max((bufferedValue * multiplier + currentValue) * iDivisor, bufferedValue * DecreaseLimitPct);
-			}
-		}
-
-		private readonly struct Snapshot
-		{
-			public readonly float RemoteTime;
-			public readonly TSnapshot Value;
-
-			public Snapshot(float remoteTime, TSnapshot value)
-			{
-				Value = value;
-				RemoteTime = remoteTime;
 			}
 		}
 	}

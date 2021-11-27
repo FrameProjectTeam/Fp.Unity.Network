@@ -3,10 +3,10 @@
 	/// <summary>
 	/// Strategy interface that defines the interpolation logic between two snapshots. 
 	/// </summary>
-	/// <typeparam name="TSnapshot">Target interpolated type</typeparam>
-	public interface ILerpStrategy<TSnapshot>
-		where TSnapshot : struct
+	/// <typeparam name="TState">Target interpolated type</typeparam>
+	public interface ILerpStrategy<TState>
+		where TState : struct
 	{
-		void Interpolate(in TSnapshot from, in TSnapshot to, float time, out TSnapshot result);
+		void Interpolate(in TState from, in TState to, float time, out TState result);
 	}
 }
