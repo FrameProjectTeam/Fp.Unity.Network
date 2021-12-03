@@ -44,13 +44,18 @@ namespace Fp.Network.Interpolation
 		bool AddSample(float remoteTime, float localTime, in TState snapshot);
 
 		/// <summary>
-		///     Reset history and recalculate new timings by passed values.
+		///		Replace history by new state sample and recalculate new timings based on this value.
 		/// </summary>
 		/// <param name="remoteTime">Remote session time for passed snapshot.</param>
 		/// <param name="clientTime">Local session time.</param>
 		/// <param name="state">Target state, will copy to history.</param>
 		void Reset(float remoteTime, float clientTime, in TState state);
 
+		/// <summary>
+		///		Clear history and reset timings.
+		/// </summary>
+		void Reset();
+		
 		/// <summary>
 		///     Calculate intermediate(interpolated) snapshot based on history and passed session time
 		///     <see cref="interpolateTime" />

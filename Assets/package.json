@@ -1,6 +1,6 @@
 {
   "name": "com.fp.netwokring",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "Network struct and utility",
   "description": "Networking data structures, serialization, interpolation and compression utility",
   "unity": "2019.1",

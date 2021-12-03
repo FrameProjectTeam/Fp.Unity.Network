@@ -78,13 +78,13 @@ namespace Fp.Network.Interpolation
 		private readonly FpDeque<Snapshot<TState>> _history;
 
 		// The strategy that defines the interpolation logic between two snapshots. 
-		private readonly TLerpStrategy _interpolator;
+		private readonly TLerpStrategy _lerp;
 
-		public Interpolator(TLerpStrategy interpolator, float cachedTime = DefaultCacheTime)
+		public Interpolator(TLerpStrategy lerp, float cachedTime = DefaultCacheTime)
 		{
 			HistoryTimeLimit = cachedTime;
 
-			_interpolator = interpolator;
+			_lerp = lerp;
 			_history = new FpDeque<Snapshot<TState>>(InitCacheSize);
 		}
 
@@ -154,6 +154,15 @@ namespace Fp.Network.Interpolation
 		}
 
 		/// <inheritdoc />
+		public void Reset()
+		{
+			_history.Clear();
+
+			_latency = 0;
+			_updateTime = 0;
+		}
+
+		/// <inheritdoc />
 		public float Interpolate(float interpolateTime, out TState state)
 		{
 			switch (HistoryLength)
@@ -188,7 +197,7 @@ namespace Fp.Network.Interpolation
 				{
 					float t = MathUtils.Map01(interpolateTime, from.RemoteTime, to.RemoteTime);
 
-					_interpolator.Interpolate(from.Value, to.Value, t, out state);
+					_lerp.Interpolate(from.Value, to.Value, t, out state);
 					return 0;
 				}
 			}
@@ -250,6 +259,7 @@ namespace Fp.Network.Interpolation
 
 		private bool EstimateTimings(float remoteTime, float clientTime)
 		{
+			//TODO: Prevent history usage in this case
 			//If it first time set this time as is.
 			if (!_history.TryPeekRight(out Snapshot<TState> last))
 			{
