@@ -23,16 +23,6 @@ namespace Fp.Network.Interpolation
 		public const float DefaultCacheTime = 5;
 
 		/// <summary>
-		///     Increases latency by a certain pct. To avoid noise in delay.
-		/// </summary>
-		public const float IncreaseLatencyPct = 3f;
-
-		/// <summary>
-		///     Calculated const. Do change <see cref="IncreaseLatencyPct" /> values for correcting this coefficient
-		/// </summary>
-		public const float IncreaseLatencyCoef = 1f + IncreaseLatencyPct / 100f;
-
-		/// <summary>
 		///     Determines ratio with which cached value change by estimated value.
 		///     When estimated value is increasing.
 		///     <example>
@@ -59,14 +49,9 @@ namespace Fp.Network.Interpolation
 		private const int DecreaseDivisor = 32;
 
 		/// <summary>
-		///     Maximum possible increasing by pct. with current value.
+		///     Maximum possible increasing in seconds.
 		/// </summary>
-		private const float IncreaseLimitPct = 2;
-
-		/// <summary>
-		///     Minimum possible decreasing by pct. with current value.
-		/// </summary>
-		private const float DecreaseLimitPct = 0.5f;
+		private const float IncreaseTimeLimit = 0.25F;
 
 		// Waiting time for a delivering new snapshot.
 		private float _latency;
@@ -120,7 +105,7 @@ namespace Fp.Network.Interpolation
 		public float Latency => _latency;
 
 		/// <inheritdoc />
-		public float Delay => (UpdateTime + Latency) * IncreaseLatencyCoef;
+		public float Delay => UpdateTime + Latency;
 
 #endregion
 
@@ -284,14 +269,15 @@ namespace Fp.Network.Interpolation
 				const float iDivisor = 1f / IncreaseDivisor;
 				const int multiplier = IncreaseDivisor - 1;
 
-				bufferedValue = Math.Min((bufferedValue * multiplier + currentValue) * iDivisor, bufferedValue * IncreaseLimitPct);
+				currentValue = Math.Min(currentValue, bufferedValue + IncreaseTimeLimit);
+				bufferedValue = (bufferedValue * multiplier + currentValue) * iDivisor;
 			}
 			else
 			{
 				const float iDivisor = 1f / DecreaseDivisor;
 				const int multiplier = DecreaseDivisor - 1;
 
-				bufferedValue = Math.Max((bufferedValue * multiplier + currentValue) * iDivisor, bufferedValue * DecreaseLimitPct);
+				bufferedValue = (bufferedValue * multiplier + currentValue) * iDivisor;
 			}
 		}
 	}
