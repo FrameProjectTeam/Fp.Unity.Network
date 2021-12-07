@@ -165,46 +165,42 @@ namespace Fp.Network.Interpolation
 		/// <inheritdoc />
 		public float Interpolate(float interpolateTime, out TState state)
 		{
-			switch (HistoryLength)
-			{
-				case 0:
-				{
-					state = default;
-					return float.NaN;
-				}
-				case 1:
-				{
-					ref Snapshot<TState> first = ref _history.PeekRight();
-					state = first.Value;
-					return interpolateTime - first.RemoteTime;
-				}
-			}
-
+			//Interpolate between snapshot starting with a new ones ending with an old ones.
 			for (var i = 1; i < HistoryLength; i++)
 			{
 				ref Snapshot<TState> to = ref _history.PeekRight(i - 1);
 				ref Snapshot<TState> from = ref _history.PeekRight(i);
 
-				//Target last
-				if (interpolateTime >= to.RemoteTime)
+				//Target between
+				if (interpolateTime <= from.RemoteTime)
 				{
-					state = to.Value;
+					continue;
+				}
+
+				float t = MathUtils.Map01(interpolateTime, @from.RemoteTime, to.RemoteTime);
+
+				_lerp.Interpolate(@from.Value, to.Value, t, out state);
+
+				if (t > 1)
+				{
+					//Extrapolation time
 					return interpolateTime - to.RemoteTime;
 				}
-
-				//Target between
-				if (interpolateTime > from.RemoteTime && interpolateTime < to.RemoteTime)
-				{
-					float t = MathUtils.Map01(interpolateTime, from.RemoteTime, to.RemoteTime);
-
-					_lerp.Interpolate(from.Value, to.Value, t, out state);
-					return 0;
-				}
+				
+				return 0;
 			}
 
-			ref Snapshot<TState> last = ref _history.PeekLeft();
-			state = last.Value;
-			return interpolateTime - last.RemoteTime;
+			if (_history.IsEmpty)
+			{
+				//If have no history return default(invalid) value
+				state = default;
+				return float.NaN;
+			}
+
+			ref Snapshot<TState> first = ref _history.PeekItem(0);
+			
+			state = first.Value;
+			return interpolateTime - first.RemoteTime;
 		}
 
 #endregion
