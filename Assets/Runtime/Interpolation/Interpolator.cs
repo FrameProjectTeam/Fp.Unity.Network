@@ -6,6 +6,8 @@ using System.Runtime.CompilerServices;
 using Fp.Collections;
 using Fp.Utility;
 
+using UnityEngine.Assertions;
+
 namespace Fp.Network.Interpolation
 {
 	public sealed class Interpolator<TState, TLerpStrategy> : IInterpolator<TState>
@@ -240,11 +242,13 @@ namespace Fp.Network.Interpolation
 
 		private bool EstimateTimings(float remoteTime, float clientTime)
 		{
+			float curLatency = Math.Max(clientTime - remoteTime, 0);
+			
 			//TODO: Prevent history usage in this case
 			//If it first time set this time as is.
 			if (!_history.TryPeekRight(out Snapshot<TState> last))
 			{
-				_latency = clientTime - remoteTime;
+				_latency = curLatency;
 				_updateTime = _latency;
 				return true;
 			}
@@ -254,8 +258,8 @@ namespace Fp.Network.Interpolation
 			{
 				return false;
 			}
-
-			EstimateValue(clientTime - remoteTime, ref _latency);
+			
+			EstimateValue(curLatency, ref _latency);
 			EstimateValue(remoteTime - last.RemoteTime, ref _updateTime);
 
 			return true;
@@ -264,6 +268,8 @@ namespace Fp.Network.Interpolation
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static void EstimateValue(float currentValue, ref float bufferedValue)
 		{
+			Assert.IsTrue(currentValue >= 0, $"currentValue >= 0, {currentValue}");
+			
 			if (currentValue > bufferedValue)
 			{
 				const float iDivisor = 1f / IncreaseDivisor;
