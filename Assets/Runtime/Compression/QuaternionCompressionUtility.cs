@@ -2,7 +2,6 @@ using System;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
-using UnityEngine.Assertions;
 
 namespace Fp.Network.Compression
 {
@@ -98,8 +97,6 @@ namespace Fp.Network.Compression
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static uint PackToUint32(float x, float y, float z, float w)
 		{
-			Assert.IsTrue(Mathf.Approximately(x + y + z + w, 1f));
-
 			float absX = Math.Abs(x);
 			float absY = Math.Abs(y);
 			float absZ = Math.Abs(z);
@@ -286,8 +283,6 @@ namespace Fp.Network.Compression
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static ulong PackToUint64(float x, float y, float z, float w)
 		{
-			Assert.IsTrue(Mathf.Approximately(x + y + z + w, 1f));
-
 			float absX = Math.Abs(x);
 			float absY = Math.Abs(y);
 			float absZ = Math.Abs(z);
