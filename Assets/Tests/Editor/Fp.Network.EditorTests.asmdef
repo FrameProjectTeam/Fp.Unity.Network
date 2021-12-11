@@ -1,0 +1,13 @@
+﻿{
+  "name": "Fp.Network.EditorTests",
+  "references": [
+    "Fp.Network"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": []
+}

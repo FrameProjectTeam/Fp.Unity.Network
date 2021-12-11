@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Fp.Network.Compression
 {
-	public static class QuaternionCompressionUtility
+	public static class QuaternionCompression
 	{
 		private const double SqrtTwo = 1.4142135623731;
 		private const double Maximum = 1 / SqrtTwo;
@@ -288,7 +288,7 @@ namespace Fp.Network.Compression
 			float absZ = Math.Abs(z);
 			float absW = Math.Abs(w);
 
-			uint largest = 0;
+			ulong largest = 0;
 			float largestValue = absX;
 
 			if (absY > largestValue)
