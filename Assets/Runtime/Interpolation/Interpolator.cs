@@ -62,7 +62,7 @@ namespace Fp.Network.Interpolation
 		private float _updateTime;
 
 		// Cyclic buffer for saving snapshot history. 
-		private readonly FpDeque<Snapshot<TState>> _history;
+		private readonly Deque<Snapshot<TState>> _history;
 
 		// The strategy that defines the interpolation logic between two snapshots. 
 		private readonly TLerpStrategy _lerp;
@@ -72,7 +72,7 @@ namespace Fp.Network.Interpolation
 			HistoryTimeLimit = cachedTime;
 
 			_lerp = lerp;
-			_history = new FpDeque<Snapshot<TState>>(InitCacheSize);
+			_history = new Deque<Snapshot<TState>>(InitCacheSize);
 		}
 
 #region IEnumerable Implementation
