@@ -13,13 +13,23 @@
 		public const float IncreaseLatencyCoef = 1f + IncreaseLatencyPct / 100f;
 		
 		/// <summary>
-		///		Convert current time to interpolate time with delay.
+		///		Convert current time to interpolate time with full delay(latency + interval + 5%).
 		/// </summary>
 		/// <param name="interpolator">Target synchronizer.</param>
 		/// <param name="convertTime"></param>
-		public static void ToInterpolationTime(this IInterpolator interpolator, ref float convertTime)
+		public static void ToInterpolationMaximizedTime(this IInterpolator interpolator, ref float convertTime)
 		{
 			convertTime -= interpolator.Delay * IncreaseLatencyCoef;
+		}
+		
+		/// <summary>
+		///		Convert current time to interpolate time with max of (latency, interval) + 5%.
+		/// </summary>
+		/// <param name="interpolator">Target synchronizer.</param>
+		/// <param name="convertTime"></param>
+		public static void ToInterpolationOptimizedTime(this IInterpolator interpolator, ref float convertTime)
+		{
+			convertTime -= Mathf.Max(interpolator.Latency, interpolator.UpdateTime) * IncreaseLatencyCoef;
 		}
 	}
 }
