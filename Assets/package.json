@@ -1,6 +1,6 @@
 {
   "name": "com.fp.netwokring",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "displayName": "Network struct and utility",
   "description": "Networking data structures, serialization, interpolation and compression utility",
   "unity": "2019.1",
@@ -8,7 +8,7 @@
   "author": { "name": "Frame Project", "email": "Yevhenii.Vitiuk@gmail.com"},
   "license": "MIT",
   "dependencies": {
-	"com.fp.collections": "1.0.4",
-    "com.fp.utility": "1.0.0"
+	"com.fp.collections": "1.0.6",
+    "com.fp.utility": "1.0.8"
   }
 }

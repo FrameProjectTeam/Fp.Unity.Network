@@ -18,7 +18,7 @@ namespace Fp.Network.Interpolation
 		/// <summary>
 		///     Summary interpolation delay
 		/// </summary>
-		float Delay { get; }
+		float ComplexDelay { get; }
 
 		/// <summary>
 		///     Count of cached snapshot items.
@@ -29,6 +29,9 @@ namespace Fp.Network.Interpolation
 		///     Guaranteed time to save history.
 		/// </summary>
 		float HistoryTimeLimit { get; }
+
+		float MaxExtrapolationTime { get; }
+		float ExtrapolationTime { get; }
 	}
 
 	public interface IInterpolator<TState> : IInterpolator, IReadOnlyList<Snapshot<TState>>

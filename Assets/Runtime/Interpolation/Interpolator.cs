@@ -67,8 +67,9 @@ namespace Fp.Network.Interpolation
 		// The strategy that defines the interpolation logic between two snapshots. 
 		private readonly TLerpStrategy _lerp;
 
-		public Interpolator(TLerpStrategy lerp, float cachedTime = DefaultCacheTime)
+		public Interpolator(TLerpStrategy lerp, float maxExtrapolationTime = float.PositiveInfinity, float cachedTime = DefaultCacheTime)
 		{
+			MaxExtrapolationTime = maxExtrapolationTime;
 			HistoryTimeLimit = cachedTime;
 
 			_lerp = lerp;
@@ -95,6 +96,7 @@ namespace Fp.Network.Interpolation
 
 #region IInterpolator Implementation
 
+		public float MaxExtrapolationTime { get; }
 		public float HistoryTimeLimit { get; }
 
 		/// <inheritdoc />
@@ -107,7 +109,9 @@ namespace Fp.Network.Interpolation
 		public float Latency => _latency;
 
 		/// <inheritdoc />
-		public float Delay => UpdateTime + Latency;
+		public float ComplexDelay => UpdateTime + Latency;
+
+		public float ExtrapolationTime { get; private set; }
 
 #endregion
 
@@ -116,13 +120,13 @@ namespace Fp.Network.Interpolation
 		/// <inheritdoc />
 		public bool AddSample(float remoteTime, float localTime, in TState snapshot)
 		{
-			if (!EstimateTimings(remoteTime, localTime))
+			if(!EstimateTimings(remoteTime, localTime))
 			{
 				return false;
 			}
 
 			_history.AddToRight(new Snapshot<TState>(remoteTime, snapshot));
-			if (AutoCleanup)
+			if(AutoCleanup)
 			{
 				InternalCleanup(remoteTime);
 			}
@@ -153,31 +157,43 @@ namespace Fp.Network.Interpolation
 		public float Interpolate(float interpolateTime, out TState state)
 		{
 			//Interpolate between snapshot starting with a new ones ending with an old ones.
-			for (var i = 1; i < HistoryLength; i++)
+			for(var i = 1; i < HistoryLength; i++)
 			{
-				ref Snapshot<TState> to = ref _history.PeekRight(i - 1);
-				ref Snapshot<TState> from = ref _history.PeekRight(i);
+				ref Snapshot<TState> toState = ref _history.PeekRight(i - 1);
+				ref Snapshot<TState> fromState = ref _history.PeekRight(i);
 
 				//Target between
-				if (interpolateTime <= from.RemoteTime)
+				if(interpolateTime <= fromState.RemoteTime)
 				{
 					continue;
 				}
 
-				float t = MathUtils.Map01(interpolateTime, @from.RemoteTime, to.RemoteTime);
+				float t = MathUtils.Map01(interpolateTime, fromState.RemoteTime, toState.RemoteTime);
 
-				_lerp.Interpolate(@from.Value, to.Value, t, out state);
-
-				if (t > 1)
+				if(t > 1)
 				{
+					//Extrapolation time limitation
+					ExtrapolationTime = interpolateTime - toState.RemoteTime;
+					if(ExtrapolationTime > MaxExtrapolationTime)
+					{
+						t = 1 + MaxExtrapolationTime / (toState.RemoteTime - fromState.RemoteTime);
+						_lerp.Interpolate(fromState.Value, toState.Value, t, out state);
+
+						return MaxExtrapolationTime;
+					}
+
+					_lerp.Interpolate(fromState.Value, toState.Value, t, out state);
 					//Extrapolation time
-					return interpolateTime - to.RemoteTime;
+					return ExtrapolationTime;
 				}
-				
+
+				ExtrapolationTime = 0;
+				_lerp.Interpolate(fromState.Value, toState.Value, t, out state);
+
 				return 0;
 			}
 
-			if (_history.IsEmpty)
+			if(_history.IsEmpty)
 			{
 				//If have no history return default(invalid) value
 				state = default;
@@ -185,7 +201,7 @@ namespace Fp.Network.Interpolation
 			}
 
 			ref Snapshot<TState> first = ref _history.PeekItem(0);
-			
+
 			state = first.Value;
 			return interpolateTime - first.RemoteTime;
 		}
@@ -198,7 +214,7 @@ namespace Fp.Network.Interpolation
 
 		public void Cleanup()
 		{
-			if (!_history.TryPeekRight(out Snapshot<TState> value))
+			if(!_history.TryPeekRight(out Snapshot<TState> value))
 			{
 				return;
 			}
@@ -225,16 +241,16 @@ namespace Fp.Network.Interpolation
 		{
 			float timeCap = lastRemoteTime - HistoryTimeLimit;
 			int capElement;
-			for (capElement = 0; capElement < _history.Count; capElement++)
+			for(capElement = 0; capElement < _history.Count; capElement++)
 			{
 				ref Snapshot<TState> snap = ref _history.PeekItem(capElement);
-				if (snap.RemoteTime > timeCap)
+				if(snap.RemoteTime > timeCap)
 				{
 					break;
 				}
 			}
 
-			if (capElement > 0)
+			if(capElement > 0)
 			{
 				_history.RemoveLeft(capElement);
 			}
@@ -243,10 +259,10 @@ namespace Fp.Network.Interpolation
 		private bool EstimateTimings(float remoteTime, float clientTime)
 		{
 			float curLatency = Math.Max(clientTime - remoteTime, 0);
-			
+
 			//TODO: Prevent history usage in this case
 			//If it first time set this time as is.
-			if (!_history.TryPeekRight(out Snapshot<TState> last))
+			if(!_history.TryPeekRight(out Snapshot<TState> last))
 			{
 				_latency = curLatency;
 				_updateTime = _latency;
@@ -254,11 +270,11 @@ namespace Fp.Network.Interpolation
 			}
 
 			//Skip if have newer
-			if (remoteTime <= last.RemoteTime)
+			if(remoteTime <= last.RemoteTime)
 			{
 				return false;
 			}
-			
+
 			EstimateValue(curLatency, ref _latency);
 			EstimateValue(remoteTime - last.RemoteTime, ref _updateTime);
 
@@ -269,8 +285,8 @@ namespace Fp.Network.Interpolation
 		private static void EstimateValue(float currentValue, ref float bufferedValue)
 		{
 			Assert.IsTrue(currentValue >= 0, $"currentValue >= 0, {currentValue}");
-			
-			if (currentValue > bufferedValue)
+
+			if(currentValue > bufferedValue)
 			{
 				const float iDivisor = 1f / IncreaseDivisor;
 				const int multiplier = IncreaseDivisor - 1;
