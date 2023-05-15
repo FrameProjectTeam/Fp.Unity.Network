@@ -17,12 +17,12 @@ namespace Fp.Network.Interpolation
 		/// <summary>
 		///     Initial circular buffer size
 		/// </summary>
-		public const int InitCacheSize = 32;
+		private const int InitCacheSize = 32;
 
 		/// <summary>
 		///     Default value for limiting snapshot history in the buffer by lifetime in seconds.
 		/// </summary>
-		public const float DefaultCacheTime = 5;
+		private const float DefaultCacheTime = 5;
 
 		/// <summary>
 		///     Determines ratio with which cached value change by estimated value.
@@ -59,7 +59,7 @@ namespace Fp.Network.Interpolation
 		private float _latency;
 
 		// Average interval between sending snapshots.
-		private float _updateTime;
+		private float _interval;
 
 		// Cyclic buffer for saving snapshot history. 
 		private readonly Deque<Snapshot<TState>> _history;
@@ -103,13 +103,10 @@ namespace Fp.Network.Interpolation
 		public int HistoryLength => _history.Count;
 
 		/// <inheritdoc />
-		public float UpdateTime => _updateTime;
+		public float Interval => _interval;
 
 		/// <inheritdoc />
 		public float Latency => _latency;
-
-		/// <inheritdoc />
-		public float ComplexDelay => UpdateTime + Latency;
 
 		public float ExtrapolationTime { get; private set; }
 
@@ -141,7 +138,7 @@ namespace Fp.Network.Interpolation
 			_history.AddToRight(new Snapshot<TState>(remoteTime, state));
 
 			_latency = clientTime - remoteTime;
-			_updateTime = _latency;
+			_interval = _latency;
 		}
 
 		/// <inheritdoc />
@@ -150,11 +147,11 @@ namespace Fp.Network.Interpolation
 			_history.Clear();
 
 			_latency = 0;
-			_updateTime = 0;
+			_interval = 0;
 		}
 
 		/// <inheritdoc />
-		public float Interpolate(float interpolateTime, out TState state)
+		public float Interpolate(float interpolateTime, ref TState state)
 		{
 			//Interpolate between snapshot starting with a new ones ending with an old ones.
 			for(var i = 1; i < HistoryLength; i++)
@@ -172,23 +169,11 @@ namespace Fp.Network.Interpolation
 
 				if(t > 1)
 				{
-					//Extrapolation time limitation
-					ExtrapolationTime = interpolateTime - toState.RemoteTime;
-					if(ExtrapolationTime > MaxExtrapolationTime)
-					{
-						t = 1 + MaxExtrapolationTime / (toState.RemoteTime - fromState.RemoteTime);
-						_lerp.Interpolate(fromState.Value, toState.Value, t, out state);
-
-						return MaxExtrapolationTime;
-					}
-
-					_lerp.Interpolate(fromState.Value, toState.Value, t, out state);
-					//Extrapolation time
-					return ExtrapolationTime;
+					return Extrapolation(interpolateTime, ref state, fromState, toState, t);
 				}
 
 				ExtrapolationTime = 0;
-				_lerp.Interpolate(fromState.Value, toState.Value, t, out state);
+				_lerp.Interpolate(fromState.Value, toState.Value, t, ref state);
 
 				return 0;
 			}
@@ -204,6 +189,28 @@ namespace Fp.Network.Interpolation
 
 			state = first.Value;
 			return interpolateTime - first.RemoteTime;
+		}
+
+		private float Extrapolation(
+			float interpolateTime,
+			ref TState state,
+			Snapshot<TState> fromState,
+			Snapshot<TState> toState,
+			float lerpTime)
+		{ 
+			//Extrapolation time limitation
+			ExtrapolationTime = interpolateTime - toState.RemoteTime;
+			if(ExtrapolationTime > MaxExtrapolationTime)
+			{
+				lerpTime = 1 + MaxExtrapolationTime / (toState.RemoteTime - fromState.RemoteTime);
+				_lerp.Interpolate(fromState.Value, toState.Value, lerpTime, ref state);
+
+				return MaxExtrapolationTime;
+			}
+
+			_lerp.Interpolate(fromState.Value, toState.Value, lerpTime, ref state);
+			//Extrapolation time
+			return ExtrapolationTime;
 		}
 
 #endregion
@@ -259,13 +266,11 @@ namespace Fp.Network.Interpolation
 		private bool EstimateTimings(float remoteTime, float clientTime)
 		{
 			float curLatency = Math.Max(clientTime - remoteTime, 0);
-
-			//TODO: Prevent history usage in this case
-			//If it first time set this time as is.
+			
 			if(!_history.TryPeekRight(out Snapshot<TState> last))
 			{
 				_latency = curLatency;
-				_updateTime = _latency;
+				_interval = _latency;
 				return true;
 			}
 
@@ -276,7 +281,7 @@ namespace Fp.Network.Interpolation
 			}
 
 			EstimateValue(curLatency, ref _latency);
-			EstimateValue(remoteTime - last.RemoteTime, ref _updateTime);
+			EstimateValue(remoteTime - last.RemoteTime, ref _interval);
 
 			return true;
 		}

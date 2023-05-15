@@ -7,6 +7,6 @@
 	public interface ILerpStrategy<TState>
 		where TState : struct
 	{
-		void Interpolate(in TState from, in TState to, float time, out TState result);
+		void Interpolate(in TState from, in TState to, float time, ref TState result);
 	}
 }

@@ -1,13 +1,12 @@
 {
-    "name": "Fp.Network",
-    "rootNamespace": "Fp.Network",
+    "name": "Fp.Network.Samples.Interpolator",
+    "rootNamespace": "",
     "references": [
-        "GUID:b13acaa83416a0648b105c9b148ce9c4",
-        "GUID:1e27a3c05b0004045823a732722c0ef0"
+        "GUID:0e61ee915f1ab7d46a58a1612efe1e12"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": true,
+    "allowUnsafeCode": false,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,

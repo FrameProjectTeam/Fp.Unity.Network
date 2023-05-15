@@ -8,17 +8,12 @@ namespace Fp.Network.Interpolation
 		/// <summary>
 		///     Average interval between sending snapshots.
 		/// </summary>
-		float UpdateTime { get; }
+		float Interval { get; }
 
 		/// <summary>
 		///     Waiting time for a delivering new snapshot.
 		/// </summary>
 		float Latency { get; }
-
-		/// <summary>
-		///     Summary interpolation delay
-		/// </summary>
-		float ComplexDelay { get; }
 
 		/// <summary>
 		///     Count of cached snapshot items.
@@ -58,7 +53,7 @@ namespace Fp.Network.Interpolation
 		///		Clear history and reset timings.
 		/// </summary>
 		void Reset();
-		
+
 		/// <summary>
 		///     Calculate intermediate(interpolated) snapshot based on history and passed session time
 		///     <see cref="interpolateTime" />
@@ -66,6 +61,6 @@ namespace Fp.Network.Interpolation
 		/// <param name="interpolateTime">Session time to make snapshot.</param>
 		/// <param name="state">Intermediate(interpolated) snapshot.</param>
 		/// <returns></returns>
-		float Interpolate(float interpolateTime, out TState state);
+		float Interpolate(float interpolateTime, ref TState state);
 	}
 }

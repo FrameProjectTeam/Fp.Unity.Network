@@ -185,30 +185,5 @@ namespace Fp.Network.Compression
 
 			return vector;
 		}
-
-		public static short CompressSingleToHalf(float value)
-		{
-			var cnt = 0;
-			while (Math.Abs(value - Math.Floor(value)) > float.Epsilon)
-			{
-				value *= 10.0f;
-				cnt++;
-			}
-
-			return (short)((cnt << 12) + (int)value);
-		}
-
-		public static float DecompressShortToSingle(short value)
-		{
-			int cnt = value >> 12;
-			float result = value & 0xfff;
-			while (cnt > 0)
-			{
-				result /= 10.0f;
-				cnt--;
-			}
-
-			return result;
-		}
 	}
 }
